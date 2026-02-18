@@ -5,7 +5,7 @@ import { playSiren } from './audio';
 const PATROL_SPEED = 4;
 const CHASE_SPEED = 12;
 const CATCH_DISTANCE = 3.5;
-const CHASE_RANGE = 100;
+const CHASE_RANGE = 25;
 const SPEECH_DURATION = 2;
 
 const SPEECHES = [
@@ -122,14 +122,11 @@ function createSpeechBubble(text: string): THREE.Sprite {
 
 export function createNPCs(scene: THREE.Scene): NPC[] {
   const positions: [number, number][] = [
-    [40, 40],
-    [70, 50],
-    [50, 70],
-    [-20, 10],
-    [10, -20],
-    [0, 50],
-    [60, 0],
-    [-40, 40],
+    [40, 40], [70, 50], [50, 70], [-20, 10], [10, -20],
+    [0, 50], [60, 0], [-40, 40],
+    // New outer NPCs
+    [150, 80], [-150, 100], [180, -80], [-120, -120],
+    [100, 150], [-100, -150], [200, 0], [-200, 0],
   ];
 
   return positions.map(([x, z], i) => {
@@ -217,8 +214,8 @@ export function updateNPCs(
           0,
           playerPos.z + Math.sin(angle) * dist
         );
-        npc.position.x = Math.max(-130, Math.min(130, npc.position.x));
-        npc.position.z = Math.max(-130, Math.min(130, npc.position.z));
+        npc.position.x = Math.max(-280, Math.min(280, npc.position.x));
+        npc.position.z = Math.max(-280, Math.min(280, npc.position.z));
         npc.mesh.position.copy(npc.position);
       }
       continue;
@@ -228,22 +225,30 @@ export function updateNPCs(
     const dz = playerPos.z - npc.position.z;
     const distToPlayer = Math.sqrt(dx * dx + dz * dz);
 
-    // State transitions - ALWAYS chase player aggressively
-    const chaseRange = CHASE_RANGE + wantedLevel * 20;
-    if (distToPlayer < chaseRange) {
-      if (npc.state !== 'chase') {
-        npc.state = 'chase';
-        showSpeech(npc, scene);
-      }
-      // Speed scales with wanted level but manageable
-      npc.speed = CHASE_SPEED + wantedLevel * 1;
-      // Slight speed boost when close
-      if (distToPlayer < 10) {
-        npc.speed *= 1.15;
+    // State transitions - chase when player is in sight range
+    const chaseRange = CHASE_RANGE + wantedLevel * 15;
+    const loseRange = chaseRange + 30; // Don't stop chasing immediately
+    if (npc.state === 'chase') {
+      // Already chasing - only stop if player gets far enough away
+      if (distToPlayer > loseRange) {
+        npc.state = 'patrol';
+        npc.speed = PATROL_SPEED;
+      } else {
+        npc.speed = CHASE_SPEED + wantedLevel * 1;
+        if (distToPlayer < 10) {
+          npc.speed *= 1.15;
+        }
       }
     } else {
-      npc.state = 'patrol';
-      npc.speed = PATROL_SPEED;
+      // Not chasing - start chase only when close enough (line of sight)
+      if (distToPlayer < chaseRange) {
+        npc.state = 'chase';
+        showSpeech(npc, scene);
+        npc.speed = CHASE_SPEED + wantedLevel * 1;
+      } else {
+        npc.state = 'patrol';
+        npc.speed = PATROL_SPEED;
+      }
     }
 
     // Speech timer
@@ -297,8 +302,8 @@ export function updateNPCs(
           npc.position.z + (Math.random() - 0.5) * 40
         );
         // Clamp to world
-        npc.patrolTarget.x = Math.max(-120, Math.min(120, npc.patrolTarget.x));
-        npc.patrolTarget.z = Math.max(-120, Math.min(120, npc.patrolTarget.z));
+        npc.patrolTarget.x = Math.max(-270, Math.min(270, npc.patrolTarget.x));
+        npc.patrolTarget.z = Math.max(-270, Math.min(270, npc.patrolTarget.z));
       }
     }
 
@@ -327,8 +332,8 @@ export function updateNPCs(
     }
 
     // World bounds
-    npc.position.x = Math.max(-140, Math.min(140, npc.position.x));
-    npc.position.z = Math.max(-140, Math.min(140, npc.position.z));
+    npc.position.x = Math.max(-290, Math.min(290, npc.position.x));
+    npc.position.z = Math.max(-290, Math.min(290, npc.position.z));
 
     npc.mesh.position.copy(npc.position);
     npc.mesh.rotation.y = npc.rotation;

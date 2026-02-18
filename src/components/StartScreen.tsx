@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Role, GameConfig } from '@/game/types';
+import { GameConfig } from '@/game/types';
 
 interface StartScreenProps {
   onStart: (config: GameConfig) => void;
@@ -9,12 +9,11 @@ interface StartScreenProps {
 
 export default function StartScreen({ onStart }: StartScreenProps) {
   const [name, setName] = useState('');
-  const [role, setRole] = useState<Role>('prisoner');
   const [showControls, setShowControls] = useState(false);
 
   const handleStart = () => {
     if (!name.trim()) return;
-    onStart({ playerName: name.trim(), role });
+    onStart({ playerName: name.trim(), role: 'prisoner' });
   };
 
   return (
@@ -62,43 +61,6 @@ export default function StartScreen({ onStart }: StartScreenProps) {
                 className="w-full px-4 py-3 bg-gray-800/80 border-2 border-gray-600 rounded-lg text-white text-lg focus:outline-none focus:border-yellow-500 transition-colors placeholder:text-gray-500"
                 onKeyDown={(e) => e.key === 'Enter' && handleStart()}
               />
-            </div>
-
-            {/* Role selection */}
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                역할 선택
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setRole('prisoner')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                    role === 'prisoner'
-                      ? 'border-orange-500 bg-orange-500/20 scale-105'
-                      : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="w-12 h-12 rounded-lg bg-orange-500 flex items-center justify-center text-2xl">
-                    🔓
-                  </div>
-                  <span className="text-white font-bold">죄수</span>
-                  <span className="text-xs text-gray-400">탈출하고 범행하기</span>
-                </button>
-                <button
-                  onClick={() => setRole('police')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                    role === 'police'
-                      ? 'border-blue-500 bg-blue-500/20 scale-105'
-                      : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center text-2xl">
-                    🚔
-                  </div>
-                  <span className="text-white font-bold">경찰</span>
-                  <span className="text-xs text-gray-400">도시를 순찰하기</span>
-                </button>
-              </div>
             </div>
 
             {/* Buttons */}

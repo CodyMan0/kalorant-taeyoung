@@ -274,6 +274,11 @@ export default function HUD({
             <span className="text-red-300 text-sm font-bold">수감 중</span>
           </div>
         )}
+        {player.role === 'police' && (
+          <div className="bg-blue-900/80 px-2 py-1 sm:px-3 sm:py-1 rounded-lg border border-blue-500">
+            <span className="text-blue-300 text-xs sm:text-sm font-bold">👮 경찰</span>
+          </div>
+        )}
       </div>
 
       {/* Minimap - bottom right */}

@@ -6,6 +6,18 @@ interface WorldResult {
   robberyLocations: RobberyLocation[];
   prisonEscapeCollider: Collider;
   streetLights: THREE.PointLight[];
+  trafficCars: TrafficCar[];
+  spacePortal: SpacePortal;
+}
+
+export interface TrafficCar {
+  mesh: THREE.Group;
+  position: THREE.Vector3;
+  rotation: number;
+  speed: number;
+  routeIndex: number;
+  route: THREE.Vector3[];
+  currentTarget: number;
 }
 
 function box(
@@ -39,7 +51,7 @@ function addCollider(colliders: Collider[], x: number, y: number, z: number, w: 
 
 function createGround(scene: THREE.Scene): void {
   // Main ground
-  const groundGeo = new THREE.PlaneGeometry(600, 600);
+  const groundGeo = new THREE.PlaneGeometry(1200, 1200);
   const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a8c3f, roughness: 1 });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
@@ -321,11 +333,22 @@ function createPoliceStation(scene: THREE.Scene, colliders: Collider[]): void {
 }
 
 function createApartments(scene: THREE.Scene, colliders: Collider[]): void {
-  // Apartment buildings
+  // Original buildings
   createBuilding(scene, colliders, 80, -40, 14, 20, 14, 0xbb9977, '아파트');
   createBuilding(scene, colliders, 100, -40, 14, 24, 14, 0xaa8866, '아파트');
   createBuilding(scene, colliders, -60, 50, 12, 16, 12, 0x998877);
   createBuilding(scene, colliders, 0, 70, 14, 18, 12, 0xbbaa99, '상가');
+
+  // New outer buildings
+  createBuilding(scene, colliders, 150, 80, 16, 22, 16, 0xcc9988, '주상복합');
+  createBuilding(scene, colliders, -150, 100, 14, 18, 14, 0xbbaa77, '오피스텔');
+  createBuilding(scene, colliders, 180, -80, 18, 30, 16, 0xaa9999, '타워');
+  createBuilding(scene, colliders, -180, -60, 12, 14, 12, 0x889988, '편의점');
+  createBuilding(scene, colliders, 120, 140, 14, 16, 14, 0x998866, '마트');
+  createBuilding(scene, colliders, -120, -120, 16, 20, 14, 0xbb8877, '병원');
+  createBuilding(scene, colliders, 0, -150, 20, 12, 18, 0xaabb99, '학교');
+  createBuilding(scene, colliders, -160, 0, 14, 16, 14, 0xccaa88, '카페');
+  createBuilding(scene, colliders, 160, 0, 16, 20, 14, 0x99aacc, '쇼핑몰');
 }
 
 function createGasStation(scene: THREE.Scene, colliders: Collider[]): void {
@@ -400,6 +423,9 @@ function createTrees(scene: THREE.Scene, colliders: Collider[]): void {
     [10, 50], [-10, 80], [60, -60], [-30, -60], [80, 60],
     [30, 50], [-60, -30], [50, -70], [-70, 70], [100, 0],
     [-90, -20], [110, 40], [-40, 90], [70, 80], [-80, -60],
+    // Outer trees (reduced for performance)
+    [150, 50], [-150, 50], [150, -50], [-150, -50],
+    [200, 0], [-200, 0], [0, 200], [0, -200],
   ];
 
   treePositions.forEach(([tx, tz]) => {
@@ -421,9 +447,15 @@ function createTrees(scene: THREE.Scene, colliders: Collider[]): void {
 function createStreetLights(scene: THREE.Scene, colliders: Collider[]): THREE.PointLight[] {
   const lights: THREE.PointLight[] = [];
   const positions = [
-    [0, 0], [20, 0], [40, 0], [60, 0], [-20, 0], [-40, 0],
-    [0, 20], [0, 40], [0, 60], [0, -20], [0, -40],
+    [0, 0], [20, 0], [40, 0], [60, 0], [-20, 0], [-40, 0], [-60, 0],
+    [80, 0], [100, 0], [-80, 0], [-100, 0],
+    [0, 20], [0, 40], [0, 60], [0, -20], [0, -40], [0, -60],
+    [0, 80], [0, 100], [0, -80], [0, -100],
     [30, -30], [-30, 30], [60, 60], [-50, -20],
+    // Outer ring lights
+    [150, 150], [-150, 150], [150, -150], [-150, -150],
+    [200, 0], [-200, 0], [0, 200], [0, -200],
+    [100, 150], [-100, 150], [100, -150], [-100, -150],
   ];
 
   positions.forEach(([lx, lz]) => {
@@ -449,14 +481,14 @@ function createStreetLights(scene: THREE.Scene, colliders: Collider[]): THREE.Po
 
 function createMountains(scene: THREE.Scene): void {
   const positions = [
-    [-200, -200, 60], [-150, -200, 45], [-100, -200, 50],
-    [100, -200, 55], [150, -200, 40], [200, -200, 65],
-    [-200, 200, 50], [-200, 100, 55], [200, 200, 45],
-    [200, 100, 60], [-200, -100, 40], [200, -100, 50],
+    [-400, -400, 80], [-300, -400, 60], [-200, -400, 70],
+    [200, -400, 75], [300, -400, 55], [400, -400, 85],
+    [-400, 400, 70], [-400, 200, 75], [400, 400, 65],
+    [400, 200, 80], [-400, -200, 60], [400, -200, 70],
   ];
 
   positions.forEach(([mx, mz, mh]) => {
-    const mountainGeo = new THREE.ConeGeometry(30 + Math.random() * 20, mh, 6);
+    const mountainGeo = new THREE.ConeGeometry(40 + Math.random() * 30, mh, 6);
     const mountainMat = new THREE.MeshStandardMaterial({ color: 0x666655, roughness: 1 });
     const mountain = new THREE.Mesh(mountainGeo, mountainMat);
     mountain.position.set(mx, mh / 2, mz);
@@ -464,8 +496,8 @@ function createMountains(scene: THREE.Scene): void {
     scene.add(mountain);
 
     // Snow cap
-    if (mh > 45) {
-      const snowGeo = new THREE.ConeGeometry(8, mh * 0.3, 6);
+    if (mh > 60) {
+      const snowGeo = new THREE.ConeGeometry(10, mh * 0.3, 6);
       const snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
       const snow = new THREE.Mesh(snowGeo, snowMat);
       snow.position.set(mx, mh * 0.85, mz);
@@ -514,6 +546,255 @@ function createFences(scene: THREE.Scene, colliders: Collider[]): void {
   });
 }
 
+function createTrafficCarMesh(scene: THREE.Scene, color: number): THREE.Group {
+  const group = new THREE.Group();
+
+  // Body
+  const bodyGeo = new THREE.BoxGeometry(2.2, 1.0, 4.5);
+  const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.3 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.8;
+  body.castShadow = true;
+  group.add(body);
+
+  // Roof
+  const roofGeo = new THREE.BoxGeometry(1.8, 0.8, 2.5);
+  const roofMat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.3 });
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.set(0, 1.7, -0.3);
+  roof.castShadow = true;
+  group.add(roof);
+
+  // Windows
+  const winMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, roughness: 0.1, metalness: 0.5 });
+  const frontWinGeo = new THREE.BoxGeometry(1.6, 0.6, 0.1);
+  const frontWin = new THREE.Mesh(frontWinGeo, winMat);
+  frontWin.position.set(0, 1.6, 0.95);
+  group.add(frontWin);
+
+  // Wheels
+  const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 6);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+  const wheelPositions = [[-1.0, 0.35, 1.3], [1.0, 0.35, 1.3], [-1.0, 0.35, -1.3], [1.0, 0.35, -1.3]];
+  wheelPositions.forEach(([wx, wy, wz]) => {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.position.set(wx, wy, wz);
+    wheel.rotation.z = Math.PI / 2;
+    group.add(wheel);
+  });
+
+  // Headlights
+  const lightGeo = new THREE.BoxGeometry(0.3, 0.2, 0.1);
+  const lightMat = new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffffcc, emissiveIntensity: 0.3 });
+  const hl1 = new THREE.Mesh(lightGeo, lightMat);
+  hl1.position.set(-0.7, 0.7, 2.26);
+  group.add(hl1);
+  const hl2 = new THREE.Mesh(lightGeo, lightMat);
+  hl2.position.set(0.7, 0.7, 2.26);
+  group.add(hl2);
+
+  // Taillights
+  const tailMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.2 });
+  const tl1 = new THREE.Mesh(lightGeo, tailMat);
+  tl1.position.set(-0.7, 0.7, -2.26);
+  group.add(tl1);
+  const tl2 = new THREE.Mesh(lightGeo, tailMat);
+  tl2.position.set(0.7, 0.7, -2.26);
+  group.add(tl2);
+
+  scene.add(group);
+  return group;
+}
+
+export function createTrafficCars(scene: THREE.Scene): TrafficCar[] {
+  const colors = [0xcc2222, 0x2266cc, 0x22cc44, 0xcccc22, 0xcc6622, 0x8822cc, 0x22cccc, 0xffffff, 0x444444];
+
+  const routes: THREE.Vector3[][] = [
+    // Main horizontal road left-right
+    [new THREE.Vector3(-250, 0.1, 3), new THREE.Vector3(250, 0.1, 3)],
+    // Main horizontal road right-left
+    [new THREE.Vector3(250, 0.1, -3), new THREE.Vector3(-250, 0.1, -3)],
+    // Main vertical road down-up
+    [new THREE.Vector3(3, 0.1, -250), new THREE.Vector3(3, 0.1, 250)],
+    // Main vertical road up-down
+    [new THREE.Vector3(-3, 0.1, 250), new THREE.Vector3(-3, 0.1, -250)],
+    // Outer ring top
+    [new THREE.Vector3(-200, 0.1, 148), new THREE.Vector3(200, 0.1, 148)],
+    // Outer ring bottom
+    [new THREE.Vector3(200, 0.1, -148), new THREE.Vector3(-200, 0.1, -148)],
+    // Outer ring left
+    [new THREE.Vector3(-198, 0.1, -150), new THREE.Vector3(-198, 0.1, 150)],
+    // Outer ring right
+    [new THREE.Vector3(198, 0.1, 150), new THREE.Vector3(198, 0.1, -150)],
+  ];
+
+  const cars: TrafficCar[] = [];
+
+  routes.forEach((route, ri) => {
+    // 2 cars per route
+    for (let c = 0; c < 1; c++) {
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const mesh = createTrafficCarMesh(scene, color);
+      const t = (c + 0.5) / 2;
+      const startPos = route[0].clone().lerp(route[1], t);
+      mesh.position.copy(startPos);
+
+      const dx = route[1].x - route[0].x;
+      const dz = route[1].z - route[0].z;
+      const rotation = Math.atan2(dx, dz);
+      mesh.rotation.y = rotation;
+
+      cars.push({
+        mesh,
+        position: startPos.clone(),
+        rotation,
+        speed: 8 + Math.random() * 12,
+        routeIndex: ri,
+        route,
+        currentTarget: 1,
+      });
+    }
+  });
+
+  return cars;
+}
+
+export function updateTrafficCars(cars: TrafficCar[], delta: number): void {
+  for (const car of cars) {
+    const target = car.route[car.currentTarget];
+    const dx = target.x - car.position.x;
+    const dz = target.z - car.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist < 5) {
+      // Reverse route direction
+      car.currentTarget = car.currentTarget === 0 ? 1 : 0;
+    }
+
+    const dirX = dx / dist;
+    const dirZ = dz / dist;
+
+    car.position.x += dirX * car.speed * delta;
+    car.position.z += dirZ * car.speed * delta;
+    car.position.y = 0.1;
+
+    car.rotation = Math.atan2(dirX, dirZ);
+    car.mesh.position.copy(car.position);
+    car.mesh.rotation.y = car.rotation;
+  }
+}
+
+export interface SpacePortal {
+  mesh: THREE.Group;
+  position: THREE.Vector3;
+  ringMeshes: THREE.Mesh[];
+  particleMesh: THREE.Points;
+}
+
+export function createSpacePortal(scene: THREE.Scene): SpacePortal {
+  const group = new THREE.Group();
+  const portalY = 50;
+  const portalPos = new THREE.Vector3(0, portalY, 0);
+
+  // Main ring
+  const ringGeo = new THREE.TorusGeometry(12, 1.5, 12, 32);
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: 0x6633ff, emissive: 0x4422cc, emissiveIntensity: 1.0, metalness: 0.8, roughness: 0.2
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  // Inner glow ring
+  const innerRingGeo = new THREE.TorusGeometry(10, 0.8, 12, 32);
+  const innerRingMat = new THREE.MeshStandardMaterial({
+    color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 1.5, transparent: true, opacity: 0.7
+  });
+  const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
+  innerRing.rotation.x = Math.PI / 2;
+  group.add(innerRing);
+
+  // Portal surface (semi-transparent disc)
+  const discGeo = new THREE.CircleGeometry(10, 24);
+  const discMat = new THREE.MeshBasicMaterial({
+    color: 0x2200ff, transparent: true, opacity: 0.4, side: THREE.DoubleSide
+  });
+  const disc = new THREE.Mesh(discGeo, discMat);
+  disc.rotation.x = Math.PI / 2;
+  group.add(disc);
+
+  // Particles around portal
+  const particleCount = 80;
+  const particleGeo = new THREE.BufferGeometry();
+  const positions = new Float32Array(particleCount * 3);
+  for (let i = 0; i < particleCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 8 + Math.random() * 8;
+    positions[i * 3] = Math.cos(angle) * radius;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+    positions[i * 3 + 2] = Math.sin(angle) * radius;
+  }
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const particleMat = new THREE.PointsMaterial({ color: 0x88ffff, size: 0.8, transparent: true, opacity: 0.8 });
+  const particles = new THREE.Points(particleGeo, particleMat);
+  group.add(particles);
+
+  // "SPACE PORTAL" label
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = 512;
+  labelCanvas.height = 128;
+  const ctx = labelCanvas.getContext('2d')!;
+  ctx.fillStyle = '#6633ff';
+  ctx.font = 'bold 48px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('🌌 우주 포탈 🌌', 256, 70);
+  ctx.fillStyle = '#88ffff';
+  ctx.font = '24px Arial';
+  ctx.fillText('여기로 들어가면 우주로!', 256, 110);
+  const labelTex = new THREE.CanvasTexture(labelCanvas);
+  const labelSpriteMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true });
+  const label = new THREE.Sprite(labelSpriteMat);
+  label.position.y = 18;
+  label.scale.set(16, 4, 1);
+  group.add(label);
+
+  // Beam of light going up from portal
+  const beamGeo = new THREE.CylinderGeometry(2, 8, 50, 16, 1, true);
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: 0x4422ff, transparent: true, opacity: 0.15, side: THREE.DoubleSide
+  });
+  const beam = new THREE.Mesh(beamGeo, beamMat);
+  beam.position.y = -25; // beam goes downward from portal to ground
+  group.add(beam);
+
+  group.position.copy(portalPos);
+  scene.add(group);
+
+  return {
+    mesh: group,
+    position: portalPos,
+    ringMeshes: [ring, innerRing],
+    particleMesh: particles,
+  };
+}
+
+export function updateSpacePortal(portal: SpacePortal, delta: number): void {
+  // Rotate rings
+  portal.ringMeshes[0].rotation.z += delta * 0.5;
+  portal.ringMeshes[1].rotation.z -= delta * 0.8;
+
+  // Rotate particles
+  portal.particleMesh.rotation.y += delta * 0.3;
+
+  // Pulsing glow
+  const pulse = Math.sin(Date.now() * 0.003) * 0.3 + 0.7;
+  portal.ringMeshes.forEach(r => {
+    if (r.material instanceof THREE.MeshStandardMaterial) {
+      r.material.emissiveIntensity = pulse * 1.5;
+    }
+  });
+}
+
 export function buildWorld(scene: THREE.Scene): WorldResult {
   const colliders: Collider[] = [];
 
@@ -521,9 +802,9 @@ export function buildWorld(scene: THREE.Scene): WorldResult {
 
   // Roads (connecting key locations)
   // Main horizontal road
-  createRoad(scene, -120, 0, 120, 0, 10);
+  createRoad(scene, -300, 0, 300, 0, 12);
   // Main vertical road
-  createRoad(scene, 0, -120, 0, 120, 10);
+  createRoad(scene, 0, -300, 0, 300, 12);
   // To prison
   createRoad(scene, -80, 0, -80, -60, 8);
   createRoad(scene, -80, 0, 0, 0, 8);
@@ -533,8 +814,16 @@ export function buildWorld(scene: THREE.Scene): WorldResult {
   createRoad(scene, 60, 0, 60, 60, 8);
   // To jewelry
   createRoad(scene, -30, 0, -30, 30, 8);
-  // Ring road
+  // Ring road (outer)
+  createRoad(scene, -200, 150, 200, 150, 10);
+  createRoad(scene, -200, -150, 200, -150, 10);
+  createRoad(scene, -200, -150, -200, 150, 10);
+  createRoad(scene, 200, -150, 200, 150, 10);
+  // Inner ring
   createRoad(scene, -60, 80, 80, 80, 8);
+  // Diagonal roads
+  createRoad(scene, 100, 0, 200, 100, 8);
+  createRoad(scene, -100, 0, -200, -100, 8);
 
   // Prison
   const prisonEscapeCollider = createPrison(scene, colliders);
@@ -597,5 +886,11 @@ export function buildWorld(scene: THREE.Scene): WorldResult {
     },
   ];
 
-  return { colliders, robberyLocations, prisonEscapeCollider, streetLights };
+  // Traffic cars
+  const trafficCars = createTrafficCars(scene);
+
+  // Space portal
+  const spacePortal = createSpacePortal(scene);
+
+  return { colliders, robberyLocations, prisonEscapeCollider, streetLights, trafficCars, spacePortal };
 }

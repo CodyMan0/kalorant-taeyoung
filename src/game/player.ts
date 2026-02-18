@@ -269,7 +269,8 @@ export function updatePlayer(
     state.sprintEnergy = Math.min(state.maxSprintEnergy, state.sprintEnergy + SPRINT_REGEN * delta);
   }
 
-  const speed = MOVE_SPEED * (state.isSprinting ? SPRINT_MULTIPLIER : 1);
+  const policeBoost = state.role === 'police' ? 1.15 : 1;
+  const speed = MOVE_SPEED * (state.isSprinting ? SPRINT_MULTIPLIER : 1) * policeBoost;
 
   // Move relative to camera direction
   const cameraDir = new THREE.Vector3();
@@ -327,6 +328,12 @@ export function updatePlayer(
     }
   }
   state.lastJumpPressed = wantsJump;
+
+  // Auto-fly in space
+  if (state.position.y > 80 && !state.isFlying) {
+    state.isFlying = true;
+    state.velocity.y = 0;
+  }
 
   // Flying mode
   if (state.isFlying) {
@@ -393,10 +400,9 @@ export function updatePlayer(
     player.rightWing.rotation.z = -0.3 - wingFlap;
   }
 
-  // Character tilt - lean forward when moving, more when sprinting
+  // Character tilt removed for stability
   const isMoving = Math.abs(state.velocity.x) > 0.5 || Math.abs(state.velocity.z) > 0.5;
-  const targetTilt = state.isFlying ? 0 : isMoving ? (state.isSprinting ? -0.25 : -0.12) : 0;
-  player.mesh.rotation.x += (targetTilt - player.mesh.rotation.x) * 0.1;
+  player.mesh.rotation.x = 0;
 
   // Walk/run animation
   if (isMoving && !state.isJumping && !state.isFlying) {
@@ -454,7 +460,7 @@ export function updateCamera(player: PlayerController): void {
   const camY = target.y + Math.sin(player.cameraAngleY) * player.cameraDistance;
   const camZ = target.z + Math.cos(player.cameraAngleX) * Math.cos(player.cameraAngleY) * player.cameraDistance;
 
-  player.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.15);
+  player.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.08);
   player.camera.lookAt(target);
 }
 

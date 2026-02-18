@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { GameConfig, KeyState, MobileControls, Vehicle, Role } from '@/game/types';
 import { Engine, createEngine, updateDayNightCycle, updateSpaceTransition, handleResize, disposeEngine } from '@/game/engine';
-import { buildWorld } from '@/game/world';
+import { buildWorld, updateTrafficCars, updateSpacePortal } from '@/game/world';
 import { PlayerController, createPlayer, updatePlayer, updateCamera, handleMouseMove, handleScroll, isNearPosition, respawnInJail } from '@/game/player';
 import { createVehicles, findNearestVehicle, enterVehicle, exitVehicle, updateVehicle, updateVehicleCamera } from '@/game/vehicles';
 import { createNPCs, updateNPCs, damageNPC } from '@/game/npc';
@@ -165,9 +165,22 @@ export default function Game() {
             const idx = worldData.colliders.indexOf(escapeCollider);
             if (idx > -1) worldData.colliders.splice(idx, 1);
           }
-          // Try robbery
-          else if (player.state.hasEscaped || player.state.role === 'police') {
-            attemptRobbery(player, worldData.robberyLocations, robberyStateRef.current);
+          // Try space portal
+          else if (worldData.spacePortal) {
+            const pp = worldData.spacePortal.position;
+            const pdx = player.state.position.x - pp.x;
+            const pdz = player.state.position.z - pp.z;
+            const portalDist = Math.sqrt(pdx * pdx + pdz * pdz);
+            if (portalDist < 15 && player.state.position.y < pp.y + 20) {
+              player.state.position.set(0, 200, 0);
+              player.state.isFlying = true;
+              player.state.velocity.set(0, 15, 0);
+              player.mesh.position.copy(player.state.position);
+            }
+            // Try robbery
+            else if (player.state.hasEscaped || player.state.role === 'police') {
+              attemptRobbery(player, worldData.robberyLocations, robberyStateRef.current);
+            }
           }
         }
       }
@@ -237,11 +250,11 @@ export default function Game() {
         const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         const bullet = new THREE.Mesh(bulletGeo, bulletMat);
 
-        // Shoot from player position in camera direction
+        // Shoot from player position in camera direction (includes vertical angle)
         const shootDir = new THREE.Vector3(
-          -Math.sin(player.cameraAngleX),
-          0,
-          -Math.cos(player.cameraAngleX)
+          -Math.sin(player.cameraAngleX) * Math.cos(player.cameraAngleY),
+          -Math.sin(player.cameraAngleY),
+          -Math.cos(player.cameraAngleX) * Math.cos(player.cameraAngleY)
         ).normalize();
 
         bullet.position.set(
@@ -258,7 +271,7 @@ export default function Game() {
         // Broadcast shoot to other players
         sendShoot(
           { x: bullet.position.x, y: bullet.position.y, z: bullet.position.z },
-          { x: shootDir.x, y: 0, z: shootDir.z }
+          { x: shootDir.x, y: shootDir.y, z: shootDir.z }
         );
       } else {
         player.state.isShooting = false;
@@ -285,8 +298,13 @@ export default function Game() {
             const killed = damageNPC(npc, 34);
             if (killed) {
               playNpcDeath();
-              player.state.money += 50000;
-              player.state.wantedLevel = Math.min(5, player.state.wantedLevel + 1);
+              if (player.state.role === 'police') {
+                player.state.money += 30000;
+                // Police don't get wanted for arresting
+              } else {
+                player.state.money += 50000;
+                player.state.wantedLevel = Math.min(5, player.state.wantedLevel + 1);
+              }
             }
             hitNpc = true;
             break;
@@ -342,8 +360,12 @@ export default function Game() {
               const killed = damageNPC(nearestNpc, 200); // instant kill
               if (killed) {
                 playNpcDeath();
-                player.state.money += 50000;
-                player.state.wantedLevel = Math.min(5, player.state.wantedLevel + 2);
+                if (player.state.role === 'police') {
+                  player.state.money += 30000;
+                } else {
+                  player.state.money += 50000;
+                  player.state.wantedLevel = Math.min(5, player.state.wantedLevel + 2);
+                }
               }
             }
           }, 150);
@@ -381,14 +403,6 @@ export default function Game() {
         bulletsRef.current.push({ mesh: bullet, velocity: vel, life: 2 });
       }
 
-      // Update other players minimap data (throttled with HUD)
-      const otherPlayers = getOtherPlayers();
-      setOtherPlayersMinimapData(otherPlayers.map(p => ({
-        x: p.targetPosition.x,
-        z: p.targetPosition.z,
-        role: p.role,
-      })));
-
       // Interaction hints
       let hint: string | null = null;
       if (!player.state.isInVehicle) {
@@ -407,14 +421,30 @@ export default function Game() {
         }
         const robberyHint = getNearbyRobberyInfo(player, worldData.robberyLocations);
         if (robberyHint) hint = robberyHint;
+        // Portal hint
+        if (worldData.spacePortal) {
+          const pp = worldData.spacePortal.position;
+          const pdx = player.state.position.x - pp.x;
+          const pdz = player.state.position.z - pp.z;
+          if (Math.sqrt(pdx * pdx + pdz * pdz) < 15 && player.state.position.y < pp.y + 20) {
+            hint = '[E] 🌌 우주 포탈 진입';
+          }
+        }
       } else {
         hint = '[E] 하차';
       }
 
       // Update HUD (throttled)
       hudUpdateTimer += delta;
-      if (hudUpdateTimer > 0.05) {
+      if (hudUpdateTimer > 0.1) {
         hudUpdateTimer = 0;
+        // Update other players minimap data
+        const otherPlayers = getOtherPlayers();
+        setOtherPlayersMinimapData(otherPlayers.map(p => ({
+          x: p.targetPosition.x,
+          z: p.targetPosition.z,
+          role: p.role,
+        })));
         setHudData({
           health: player.state.health,
           maxHealth: player.state.maxHealth,
@@ -434,6 +464,16 @@ export default function Game() {
         setRobberyDisplay({ ...robberyStateRef.current });
         setCurrentVehicle(player.state.currentVehicleId ? vehicles.find((v) => v.id === player.state.currentVehicleId) || null : null);
         setNpcsData(npcs.map((n) => ({ position: { x: n.position.x, z: n.position.z }, state: n.state })));
+      }
+
+      // Update traffic cars
+      if (worldData.trafficCars) {
+        updateTrafficCars(worldData.trafficCars, delta);
+      }
+
+      // Update space portal animation
+      if (worldData.spacePortal) {
+        updateSpacePortal(worldData.spacePortal, delta);
       }
 
       // Render
